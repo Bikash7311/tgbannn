@@ -3,6 +3,25 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from pyrogram.errors import UserNotParticipant, FloodWait, PeerIdInvalid, UserIsBlocked
+from flask import Flask
+from threading import Thread
+
+# ----------------- FLASK KEEP-ALIVE SERVER -----------------
+web_app = Flask('')
+
+@web_app.route('/')
+def home():
+    return "⚡ TgBanXBot Status: 100% ONLINE & RUNNING LIVE!"
+
+def run_web():
+    # Render assigns port dynamically via PORT env variable, defaulting to 8080
+    port = int(os.environ.get("PORT", 8080))
+    web_app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_web)
+    t.daemon = True
+    t.start()
 
 # ----------------- HARDCODED CREDENTIALS -----------------
 API_ID = 33772941
@@ -260,7 +279,7 @@ async def broadcast_handler(client: Client, message: Message):
                 broadcast_text = message.text.split(None, 1)[1]
                 await client.send_message(chat_id=user_id, text=broadcast_text)
             success += 1
-            await asyncio.sleep(0.05)  # FloodWait avoid karne ke liye
+            await asyncio.sleep(0.05)
         except FloodWait as e:
             await asyncio.sleep(e.value)
         except Exception:
@@ -275,5 +294,6 @@ async def broadcast_handler(client: Client, message: Message):
     await status_msg.edit_text(report)
 
 if __name__ == "__main__":
+    keep_alive()  # Web server start for Render Web Service
     print("⚡ Bot Pyrogram Fast Engine Online...")
     app.run()
