@@ -2,12 +2,12 @@ import os
 import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
-from pyrogram.errors import UserNotParticipant, ChatAdminRequired
+from pyrogram.errors import UserNotParticipant, FloodWait, PeerIdInvalid, UserIsBlocked
 
-# ----------------- CONFIGURATION -----------------
-API_ID = int(os.environ.get("API_ID", "123456"))          # my.telegram.org se milega
-API_HASH = os.environ.get("API_HASH", "YOUR_API_HASH")     # my.telegram.org se milega
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8580109392:AAH_IASAWo3vAiPAfSNbr_l_Yk8UG72V6R0")
+# ----------------- HARDCODED CREDENTIALS -----------------
+API_ID = 33772941
+API_HASH = "3b6ab6b1940c87915439bb41e4e80ea8"
+BOT_TOKEN = "8580109392:AAH_IASAWo3vAiPAfSNbr_l_Yk8UG72V6R0"
 
 ADMIN_ID = 6132146801
 OWNER_HANDLE = "@Znonsence"
@@ -19,7 +19,7 @@ CHANNEL_2_LINK = "https://t.me/+O1CtosbUTxU2ODBl"
 
 REFERRAL_THRESHOLD = 10
 
-# In-Memory Database (Fast execution)
+# In-Memory Database
 users_db = {}
 
 app = Client("TgBanXBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -140,7 +140,7 @@ async def callback_handler(client: Client, query: CallbackQuery):
             f"🚀 **YOUR VIP REFERRAL SYSTEM**\n\n"
             f"🔗 **Link:** `{ref_link}`\n\n"
             f"📈 **Progress:** `{user_data['referrals']}/{REFERRAL_THRESHOLD} Referrals`\n"
-            f"💡 *Is link ko friends aur groups me share karein. 10 Invites poore hote hi Premium automatic unlock ho jayega!*"
+            f"💡 *Is link ko dosto ko bhejein. 10 Invites hote hi Premium Access unlock ho jayega!*"
         )
         await query.message.reply_text(msg, disable_web_page_preview=True)
         await query.answer()
@@ -218,7 +218,7 @@ async def add_premium(client: Client, message: Message):
         
         await message.reply_text(f"✅ User `{target_id}` is now a **VIP PREMIUM MEMBER**!")
         try:
-            await client.send_message(target_id, "👑 **Owner ne aapka VIP Premium Access manually activate kar diya hai!** Enjoy features.")
+            await client.send_message(target_id, "👑 **Owner ne aapka VIP Premium Access manually activate kar diya hai!**")
         except Exception:
             pass
     except ValueError:
@@ -237,6 +237,42 @@ async def remove_premium(client: Client, message: Message):
         await message.reply_text(f"🔴 User `{target_id}` ka VIP status revoked kar diya gaya hai.")
     except ValueError:
         await message.reply_text("❌ Invalid User ID!")
+
+# ----------------- BROADCAST COMMAND -----------------
+
+@app.on_message(filters.command("broadcast") & filters.user(ADMIN_ID))
+async def broadcast_handler(client: Client, message: Message):
+    if not message.reply_to_message and len(message.command) < 2:
+        await message.reply_text("⚠️ **Usage:**\n1. `/broadcast <Text Message>`\n2. Ya kisi photo/post par reply karke `/broadcast` likhein.")
+        return
+
+    status_msg = await message.reply_text("⚡ **Broadcast Process Started...**")
+    
+    success = 0
+    failed = 0
+    total_users = len(users_db)
+
+    for user_id in list(users_db.keys()):
+        try:
+            if message.reply_to_message:
+                await message.reply_to_message.copy(chat_id=user_id)
+            else:
+                broadcast_text = message.text.split(None, 1)[1]
+                await client.send_message(chat_id=user_id, text=broadcast_text)
+            success += 1
+            await asyncio.sleep(0.05)  # FloodWait avoid karne ke liye
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+        except Exception:
+            failed += 1
+
+    report = (
+        f"📢 **BROADCAST COMPLETED**\n\n"
+        f"👥 **Total Users:** `{total_users}`\n"
+        f"✅ **Successful:** `{success}`\n"
+        f"❌ **Failed / Blocked:** `{failed}`"
+    )
+    await status_msg.edit_text(report)
 
 if __name__ == "__main__":
     print("⚡ Bot Pyrogram Fast Engine Online...")
